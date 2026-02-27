@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motorista Pro - V5.2</title>
+    <link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0061A4">
+<meta name="description" content="Controle financeiro para motoristas de aplicativo">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root { --primary: #0061A4; --surface: #fdfbff; --outline: #74777f; --error: #ba1a1a; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f4f7fa; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+        .app-bar { width: 100%; background: var(--primary); color: white; padding: 16px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .container { width: 95%; max-width: 600px; margin-top: 10px; padding-bottom: 40px; }
+        .card { background: white; border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-card { padding: 12px; border-radius: 16px; text-align: center; border: 1px solid #eee; }
+        .stat-card h4 { margin: 0; font-size: 0.72em; color: var(--outline); text-transform: uppercase; }
+        .stat-card p { margin: 5px 0 0; font-weight: bold; font-size: 1.1em; }
+        .bg-fuel { background: #fff8e1; color: #ff8f00; }
+        .bg-maint { background: #e3f2fd; color: #1565c2; }
+        .bg-personal { background: #e8f5e9; color: #2e7d32; }
+        .bg-emergency { background: #f3e5f5; color: #7b1fa2; }
+        label { display: block; margin-bottom: 4px; font-weight: 500; font-size: 0.8em; color: var(--outline); }
+        input, select { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid var(--outline); border-radius: 12px; box-sizing: border-box; background: #fff; font-size: 1rem;}
+        input:disabled { background: #f0f0f0; color: #666; cursor: not-allowed; }
+        .btn { padding: 12px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 10px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;}
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+        .btn-danger { background: var(--error); color: white; }
+        .btn-sangria { background: #6750A4; color: white; }
+        .table-wrapper { overflow-x: auto; width: 100%; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.75em; }
+        td, th { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .no-pdf { display: block; }
+
+        details.stat-card { border-radius: 16px; padding: 12px; border: 1px solid #e0e0e0; background: #f3e5f5; color: #4a148c; cursor: pointer; }
+        details.stat-card summary { font-weight: bold; font-size: 1.1em; list-style: none; outline: none; }
+        details.stat-card[open] { background: #fafafa; }
+        .detail-item { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
+        .detail-item h5 { margin: 0 0 4px 0; font-size: 0.85em; color: #555; }
+
+        .meta-proj { border: 2px dashed #2e7d32; margin-top: 20px; }
+        .meta-proj h4 { margin:0 0 12px 0; color: #2e7d32; text-align:center; }
+        .meta-status { text-align: center; font-weight: bold; font-size: 1.1em; padding: 12px; border-radius: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="app-bar no-pdf">
+    <h2 style="margin:0">Motorista Pro V5.2</h2>
+</div>
+
+<div class="container" id="reportArea">
+    <!-- Cabeçalho com seleção de mês e backup/import -->
+    <div class="card no-pdf">
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+            <select id="monthSelect" style="margin:0"></select>
+            <button class="btn btn-primary" id="closeMonthBtn" style="width: auto; margin:0">Fechar Mês</button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button class="btn btn-outline" id="backupBtn">📤 Backup</button>
+            <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">📥 Importar</button>
+        </div>
+        <input type="file" id="fileInput" style="display:none" accept=".json">
+    </div>
+
+    <!-- Cards de resumo -->
+    <div class="card summary-grid">
+        <div class="stat-card bg-fuel" style="grid-column: span 2;">
+            <h4>Disponível p/ Próximo Abastecimento</h4>
+            <p id="cardNextFuel">R$ 0,00</p>
+        </div>
+        <div class="stat-card bg-maint">
+            <h4>Manutenção Acum.</h4>
+            <p id="cardMaintAcum">R$ 0,00</p>
+        </div>
+        <div class="stat-card bg-personal">
+            <h4>Ganho Pessoal Acum.</h4>
+            <p id="cardPersonalAcum">R$ 0,00</p>
+        </div>
+        <div class="stat-card bg-emergency" style="grid-column: span 2;">
+            <h4>Reserva de Emergência</h4>
+            <p id="cardEmergency">R$ 0,00</p>
+        </div>
+        <div class="stat-card" style="grid-column: span 2; background: #e1f5fe; color: #01579b;">
+            <h4>Ganho Bruto/KM</h4>
+            <p id="cardPerKm">R$ 0,00/km</p>
+        </div>
+    </div>
+
+    <!-- Cards recolhíveis com totais -->
+    <div class="card summary-grid" style="margin-top: 24px;">
+        <details class="stat-card" style="grid-column: span 2;">
+            <summary>📊 Totais do Mês (clique para expandir)</summary>
+            <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 8px;">
+                <div class="detail-item">
+                    <h5>Total Despesas</h5>
+                    <p id="totalDespesas" style="font-weight:bold; font-size:1.15em; color:#c62828;">R$ 0,00</p>
+                </div>
+                <div class="detail-item">
+                    <h5>Lucro Bruto</h5>
+                    <p id="lucroBruto" style="font-weight:bold; font-size:1.15em; color:#2e7d32;">R$ 0,00</p>
+                </div>
+                <div class="detail-item">
+                    <h5>Lucro Líquido</h5>
+                    <p id="lucroLiquido" style="font-weight:bold; font-size:1.15em; color:#00695c;">R$ 0,00</p>
+                </div>
+                <div class="detail-item">
+                    <h5>Km Rodados</h5>
+                    <p id="totalKm" style="font-weight:bold; font-size:1.15em; color:#01579b;">0 km</p>
+                </div>
+            </div>
+        </details>
+
+        <div class="stat-card bg-emergency" style="grid-column: span 2;">
+            <h4>Lucro Líquido do Mês</h4>
+            <p id="cardLucroLiquidoSimples">R$ 0,00</p>
+        </div>
+    </div>
+
+    <!-- Formulário Registrar Trabalho -->
+    <div class="card no-pdf">
+        <form id="tripForm">
+            <h4 style="margin:0 0 10px 0">Registrar Trabalho</h4>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <input type="number" id="initialKm" placeholder="KM Inicial" required>
+                <input type="number" id="finalKm" placeholder="KM Final" required>
+                <input type="number" id="kmPerLiterInput" placeholder="KM/L" disabled>
+                <input type="number" id="fuelCost" placeholder="Abastecido R$" step="0.01" required>
+            </div>
+            <input type="number" id="grossEarned" placeholder="Ganhos Brutos R$" step="0.01" required>
+            <button type="submit" class="btn btn-primary">Salvar Dia</button>
+        </form>
+    </div>
+
+    <!-- Formulário Sangria -->
+    <div class="card no-pdf" style="border: 1px solid #6750A4;">
+        <h4 style="margin:0 0 10px 0; color: #6750A4;">Sangria (Retirar Valor)</h4>
+        <form id="withdrawForm">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                <select id="withdrawCategory" required>
+                    <option value="maint">Caixa Manutenção</option>
+                    <option value="personal">Caixa Ganho Pessoal</option>
+                </select>
+                <input type="number" id="withdrawVal" placeholder="Valor R$" step="0.01" required>
+            </div>
+            <input type="text" id="withdrawDesc" placeholder="Motivo (ex: Troca de Pneu, Saque p/ Aluguel)" required>
+            <button type="submit" class="btn btn-sangria">Confirmar Retirada</button>
+        </form>
+    </div>
+
+    <!-- Metas e Veículo + Projeção -->
+    <div class="card no-pdf">
+        <h4 style="margin:0 0 10px 0; color: var(--primary)">Metas e Veículo</h4>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+            <div><label>Ganhos Pessoais/Dia</label><input type="number" id="inputDailyPersonal"></div>
+            <div><label>Manutenção/Dia</label><input type="number" id="inputDailyMaint"></div>
+            <div style="grid-column: span 2"><label>Consumo (KM/L)</label><input type="number" id="inputDefaultKmL" step="0.1"></div>
+        </div>
+        <button class="btn btn-outline" id="saveSettingsBtn">Salvar Configurações</button>
+
+        <div class="meta-proj card" style="margin-top: 24px;">
+            <h4 id="projMetaTitle">Projeção Meta Pessoal (R$ 50/dia)</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 0.95em; margin-bottom: 12px;">
+                <div><strong id="metaMensalLabel">Meta mensal (26 dias):</strong> <span id="metaMensal">R$ 1.300,00</span></div>
+                <div><strong>Acumulado pessoal:</strong> <span id="acumPessoalProj">R$ 0,00</span></div>
+            </div>
+            <div id="projecaoContainer" class="meta-status" style="background: #e8f5e9; color: #2e7d32;">
+                <p id="statusMeta">Carregando projeção...</p>
+                <p id="brutoNecessario" style="margin-top:8px; font-size:1.2em;"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de registros -->
+    <div class="card">
+        <h4 style="text-align:center; margin:0 0 10px 0" id="currentMonthTitle">Relatório</h4>
+        <div class="table-wrapper">
+            <table id="tripTable">
+                <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Ação</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <button class="btn btn-outline no-pdf" id="downloadPdfBtn">📄 Gerar PDF</button>
+    <button class="btn btn-danger no-pdf" id="resetAppBtn">❌ Zerar Tudo</button>
+</div>
+
+<script type="module">
+    import { initApp } from './js/main.js';
+    initApp();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado!', reg))
+        .catch(err => console.log('Falha ao registrar SW:', err));
+    });
+  }
+</script>
+</body>
+</html>
