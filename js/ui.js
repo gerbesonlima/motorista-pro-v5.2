@@ -84,7 +84,7 @@ export function renderTable(data, currentMonth) {
         let actions = `
           <button class="delete-btn" data-type="${item.originalType}" data-idx="${item.idx}" style="border:none; background:none; color:red; font-size:1.2em;">✖</button>`;
 
-if (item.originalType === 'withdraw') {
+    if (item.originalType === 'withdraw') {
     actions += `
         <button class="edit-btn" data-idx="${item.idx}" style="border:none; background:none; color:#0061A4; font-size:1.1em; margin-left:8px;">✏️</button>
     `;

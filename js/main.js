@@ -94,4 +94,31 @@ export function initApp() {
     // Primeira renderização
     renderTable(data, data.currentMonth);
     updateUI(data);
+
+    // Event delegation para ações da tabela (excluir e editar)
+document.querySelector('#tripTable tbody').addEventListener('click', (e) => {
+    const target = e.target;
+
+    // Botão excluir
+    if (target.classList.contains('delete-btn')) {
+        const type = target.dataset.type;
+        const idx = parseInt(target.dataset.idx);
+        if (confirm('Excluir este registro?')) {
+            if (type === 'trip') {
+                data.months[data.currentMonth].trips.splice(idx, 1);
+            } else {
+                data.months[data.currentMonth].withdrawals.splice(idx, 1);
+            }
+            saveData(data);
+            renderTable(data, data.currentMonth);
+            updateUI(data);
+        }
+    }
+
+    // Botão editar sangria
+    if (target.classList.contains('edit-btn')) {
+        const idx = parseInt(target.dataset.idx);
+        editWithdrawal(idx, data); // função que já existe ou vamos criar
+    }
+});
 }
